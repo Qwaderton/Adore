@@ -2,7 +2,7 @@
 
 > The missing browser for lightweight X11 desktop environments.
 
-For many years, Midori was the default browser in lightweight configurations. It was fast, simple, and lightweight. But after it was acquired by Atlassian, it quickly died out — because "why do we need a Firefox fork when we can just install Firefox directly?"
+For many years, Midori was the default browser in lightweight configurations. It was fast, simple, and lightweight. But after it was acquired by Astian, it quickly died out — because "why do we need a Firefox fork when we can just install Firefox directly?"
 
 **Adore's main goal** is to be simple and integrated with lightweight desktop environments like XFCE, LXDE, and MATE. We don't strive for the latest technologies and protocols. We just need a browser.
 
