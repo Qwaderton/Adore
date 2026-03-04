@@ -1,23 +1,78 @@
-Pumpkin Browser
----------------
+# Adore Browser
 
-A lightweight WebKitGTK+ browser written in Vala.
+> The missing browser for lightweight X11 desktop environments.
 
-[![Build Status](https://semaphoreci.com/api/v1/projects/b97efd4f-36f1-4f28-8ef7-520f9ea774d2/514614/badge.svg)](https://semaphoreci.com/dannote/pumpkin-browser)
+For many years, Midori was the default browser in lightweight configurations. It was fast, simple, and lightweight. But after it was acquired by Atlassian, it quickly died out — because "why do we need a Firefox fork when we can just install Firefox directly?"
 
-![Screenshot](screenshot.png?raw=true)      
+**Adore's main goal** is to be simple and integrated with lightweight desktop environments like XFCE, LXDE, and MATE. We don't strive for the latest technologies and protocols. We just need a browser.
 
-Building
-========
+## Features
 
-Ubuntu
-```
-sudo apt-get install gnome-common libglib2.0-dev libgtk-3-dev \
-  libvala-0.26-dev valac-0.26 gobject-introspection libwebkit2gtk-4.0-dev \
-  libnotify-dev libjson-glib-dev libsoup2.4-dev
+- Tabbed browsing with drag-and-drop tab reordering and detachment
+- Address bar with Google search suggestions and URL completion
+- Per-tab favicons and titles
+- Cookie persistence (SQLite)
+- Favicon database
+- Context menu for links (open, open in new tab, copy, download)
+- Multiple windows
 
-mkdir build
+## Dependencies
+
+| Library | Version |
+|---------|---------|
+| GTK+    | ≥ 3.22  |
+| WebKitGTK | 4.1 (API 4.1, based on WebKit2) |
+| libsoup | 3.0     |
+| json-glib | 1.0   |
+| GLib    | ≥ 2.56  |
+
+## Building
+
+Adore uses [Meson](https://mesonbuild.com/).
+
+```sh
+meson setup build
 cd build
-cmake ..
-make
+ninja
 ```
+
+To install system-wide:
+
+```sh
+sudo ninja install
+```
+
+## Debian/Ubuntu dependencies
+
+```sh
+sudo apt install valac meson ninja-build \
+    libgtk-3-dev \
+    libwebkit2gtk-4.1-dev \
+    libsoup-3.0-dev \
+    libjson-glib-dev
+```
+
+## Fedora dependencies
+
+```sh
+sudo dnf install vala meson ninja-build \
+    gtk3-devel \
+    webkit2gtk4.1-devel \
+    libsoup3-devel \
+    json-glib-devel
+```
+
+## Origin
+
+Adore is a spiritual revival of [pumpkin-browser](https://github.com/dannote/pumpkin-browser),
+originally written circa 2014 in Vala + WebKit/GTK. The codebase has been modernized:
+
+- CMake → Meson
+- `webkit2gtk-4.0` → `webkit2gtk-4.1`
+- `libsoup-2.4` (`Soup.URI`, `queue_message`) → `libsoup-3.0` (`GLib.Uri`, `send_and_read_async`)
+- `Cairo.Surface` favicon → `Gdk.Texture` favicon
+- All symbols renamed from `Pumpkin` to `Adore`
+
+## License
+
+GPL-3.0-or-later

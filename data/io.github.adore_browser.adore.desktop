@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=Adore
+GenericName=Web Browser
+Comment=The missing browser for lightweight X11 desktop environments
+Exec=adore %U
+Icon=adore
+Terminal=false
+Type=Application
+Categories=Network;WebBrowser;
+MimeType=text/html;text/xml;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;
+StartupNotify=true
+StartupWMClass=adore

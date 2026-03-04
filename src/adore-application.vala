@@ -1,4 +1,4 @@
-namespace Pumpkin {
+namespace Adore {
     public class Application : Gtk.Application {
         protected ApplicationWindow window;
         public WebKit.WebContext web_context;
@@ -13,20 +13,29 @@ namespace Pumpkin {
         public string database_path {
             get { return _database_path; }
         }
-        
-        public Application() {
-            Object(application_id: "net.dannote.pumpkin", flags: ApplicationFlags.HANDLES_OPEN);
-            
-            _data_path = Path.build_path(Path.DIR_SEPARATOR_S, Environment.get_user_data_dir(),
-                "pumpkin");
-            DirUtils.create_with_parents(data_path, 0700);
-            _database_path = Path.build_filename(data_path, "browser.db");
 
+        public Application() {
+            Object(application_id: APP_ID, flags: ApplicationFlags.HANDLES_OPEN);
+
+            _data_path = Path.build_path(
+                Path.DIR_SEPARATOR_S,
+                Environment.get_user_data_dir(),
+                "adore"
+            );
+            DirUtils.create_with_parents(_data_path, 0700);
+            _database_path = Path.build_filename(_data_path, "browser.db");
+
+            // webkit2gtk-4.1: WebContext constructor is the same
             web_context = new WebKit.WebContext();
             web_context.set_favicon_database_directory(null);
             web_context.set_cache_model(WebKit.CacheModel.DOCUMENT_BROWSER);
-            web_context.get_cookie_manager().set_persistent_storage(database_path,
-                WebKit.CookiePersistentStorage.SQLITE);
+
+            // webkit2gtk-4.1: CookieManager API is unchanged
+            web_context.get_cookie_manager().set_persistent_storage(
+                _database_path,
+                WebKit.CookiePersistentStorage.SQLITE
+            );
+
             web_settings = new WebKit.Settings();
             web_settings.enable_smooth_scrolling = true;
             web_settings.enable_developer_extras = true;
@@ -53,6 +62,6 @@ namespace Pumpkin {
 }
 
 public static int main(string[] args) {
-    var application = new Pumpkin.Application();
+    var application = new Adore.Application();
     return application.run(args);
 }
