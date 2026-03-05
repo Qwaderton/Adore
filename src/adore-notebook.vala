@@ -18,13 +18,16 @@ namespace Adore {
                 this.set_tab_detachable(page, true);
 
                 page.label.close.connect(() => {
-                    this.remove_page(this.page_num(page));
-                    page.destroy();
+                    if (this.page_num(page) >= 0) {
+                        this.remove_page(this.page_num(page));
+                        page.destroy();
+                    }
                 });
             });
 
             switch_page.connect((page) => {
-                if (this.page >= 0) {
+                var current = get_nth_page(get_current_page());
+                if (this.page >= 0 && this.page_num(current) >= 0) {
                     disconnect_page_signals(get_nth_page(get_current_page()));
                 }
                 var new_page = (Adore.WebPage) page;
