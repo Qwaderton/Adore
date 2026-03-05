@@ -152,14 +152,11 @@ namespace Adore {
 
         // ── Privacy (Cookies & Cache) ─────────────────────────────────────────
         private Gtk.Widget build_privacy_page() {
-            var box = new Gtk.Box(Gtk.Orientation.VERTICAL, 12);
+            var box = new Gtk.Box(Gtk.Orientation.VERTICAL, 8);
             box.margin = 16;
 
-            var cookies_lbl = new Gtk.Label("<b>Cookies</b>");
-            cookies_lbl.use_markup = true;
-            cookies_lbl.halign = Gtk.Align.START;
-            box.pack_start(cookies_lbl, false, false, 0);
-
+            // ---- Cookies ----
+            box.pack_start(make_section_label("Cookies"), false, false, 0);
             var clear_cookies_btn = new Gtk.Button.with_label("Clear all cookies");
             clear_cookies_btn.clicked.connect(() => {
                 _web_context.get_cookie_manager().delete_all_cookies();
@@ -167,14 +164,10 @@ namespace Adore {
             });
             box.pack_start(clear_cookies_btn, false, false, 0);
 
-            var sep = new Gtk.Separator(Gtk.Orientation.HORIZONTAL);
-            box.pack_start(sep, false, false, 0);
+            box.pack_start(new Gtk.Separator(Gtk.Orientation.HORIZONTAL), false, false, 4);
 
-            var cache_lbl = new Gtk.Label("<b>Cache</b>");
-            cache_lbl.use_markup = true;
-            cache_lbl.halign = Gtk.Align.START;
-            box.pack_start(cache_lbl, false, false, 0);
-
+            // ---- Cache ----
+            box.pack_start(make_section_label("Cache"), false, false, 0);
             var clear_cache_btn = new Gtk.Button.with_label("Clear disk cache");
             clear_cache_btn.clicked.connect(() => {
                 _web_context.clear_cache();
@@ -182,16 +175,72 @@ namespace Adore {
             });
             box.pack_start(clear_cache_btn, false, false, 0);
 
-            var clear_all_btn = new Gtk.Button.with_label("Clear cookies & cache");
+            box.pack_start(new Gtk.Separator(Gtk.Orientation.HORIZONTAL), false, false, 4);
+
+            // ---- Persistent storage ----
+            box.pack_start(make_section_label("Site data (localStorage, IndexedDB, WebSQL)"), false, false, 0);
+            var hint = new Gtk.Label(
+                "<small>Stored by sites independently of cookies — e.g. text editors, offline apps.</small>");
+            hint.use_markup = true;
+            hint.halign = Gtk.Align.START;
+            hint.wrap = true;
+            box.pack_start(hint, false, false, 0);
+            var clear_storage_btn = new Gtk.Button.with_label("Clear site data");
+            clear_storage_btn.clicked.connect(on_clear_site_data);
+            box.pack_start(clear_storage_btn, false, false, 0);
+
+            box.pack_start(new Gtk.Separator(Gtk.Orientation.HORIZONTAL), false, false, 4);
+
+            // ---- Nuclear option ----
+            box.pack_start(make_section_label("Clear everything"), false, false, 0);
+            var clear_all_btn = new Gtk.Button.with_label("Clear all browsing data");
             clear_all_btn.get_style_context().add_class("destructive-action");
-            clear_all_btn.clicked.connect(() => {
-                _web_context.get_cookie_manager().delete_all_cookies();
-                _web_context.clear_cache();
-                show_info("Cookies and cache cleared.");
-            });
+            clear_all_btn.clicked.connect(on_clear_all);
             box.pack_start(clear_all_btn, false, false, 0);
 
             return box;
+        }
+
+	private Gtk.Label make_section_label(string text) {
+            var lbl = new Gtk.Label("<b>" + GLib.Markup.escape_text(text) + "</b>");
+            lbl.use_markup = true;
+            lbl.halign = Gtk.Align.START;
+            return lbl;
+        }
+
+        private void on_clear_site_data() {
+            var dm = _web_context.get_website_data_manager();
+            var types =
+                WebKit.WebsiteDataTypes.LOCAL_STORAGE        |
+                WebKit.WebsiteDataTypes.INDEXEDDB_DATABASES  |
+                WebKit.WebsiteDataTypes.WEBSQL_DATABASES      |
+                WebKit.WebsiteDataTypes.SESSION_STORAGE;
+            dm.clear(types, 0, null, (obj, res) => {
+                try {
+                    dm.clear.end(res);
+                    show_info("Site data cleared.");
+                } catch (Error e) {
+                    show_info("Error: " + e.message);
+                }
+            });
+        }
+
+        private void on_clear_all() {
+            _web_context.get_cookie_manager().delete_all_cookies();
+            _web_context.clear_cache();
+            var dm = _web_context.get_website_data_manager();
+            var types =
+                WebKit.WebsiteDataTypes.LOCAL_STORAGE             |
+                WebKit.WebsiteDataTypes.INDEXEDDB_DATABASES        |
+                WebKit.WebsiteDataTypes.WEBSQL_DATABASES           |
+                WebKit.WebsiteDataTypes.SESSION_STORAGE            |
+                WebKit.WebsiteDataTypes.OFFLINE_APPLICATION_CACHE  |
+                WebKit.WebsiteDataTypes.DISK_CACHE                 |
+                WebKit.WebsiteDataTypes.MEMORY_CACHE;
+            dm.clear(types, 0, null, (obj, res) => {
+                try { dm.clear.end(res); } catch {}
+                show_info("All browsing data cleared.");
+            });
         }
 
         private Gtk.Label make_label(string text) {
