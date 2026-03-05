@@ -37,6 +37,17 @@ namespace Adore {
             if (entry == null || entry.text.length == 0) {
                 return;
             }
+            if (!Adore.Settings.get_default().enable_suggestions) {
+                var list_store = (Gtk.ListStore) model;
+                list_store.clear();
+                var query = entry.text;
+                if (!Adore.Util.Uri.is_valid(query) || !query.has_prefix("http")) {
+                    Gtk.TreeIter iter;
+                    list_store.append(out iter);
+                    list_store.set(iter, 0, "URL", 1, Adore.Util.Uri.normalize(query));
+                }
+                return;
+            }
             fetch_suggestions.begin(entry.text);
         }
 

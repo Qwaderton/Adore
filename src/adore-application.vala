@@ -25,12 +25,10 @@ namespace Adore {
             DirUtils.create_with_parents(_data_path, 0700);
             _database_path = Path.build_filename(_data_path, "browser.db");
 
-            // webkit2gtk-4.1: WebContext constructor is the same
             web_context = new WebKit.WebContext();
             web_context.set_favicon_database_directory(null);
             web_context.set_cache_model(WebKit.CacheModel.DOCUMENT_BROWSER);
 
-            // webkit2gtk-4.1: CookieManager API is unchanged
             web_context.get_cookie_manager().set_persistent_storage(
                 _database_path,
                 WebKit.CookiePersistentStorage.SQLITE
@@ -39,6 +37,11 @@ namespace Adore {
             web_settings = new WebKit.Settings();
             web_settings.enable_smooth_scrolling = true;
             web_settings.enable_developer_extras = true;
+
+            // Applying the saved settings
+            var settings = Adore.Settings.get_default();
+            settings.apply_proxy(web_context);
+            settings.apply_web_settings(web_settings);
 
             startup.connect(() => {
                 window = new ApplicationWindow(this);
@@ -53,7 +56,17 @@ namespace Adore {
         }
 
         protected override void activate() {
-            window.create_page(false).load_html("", null);
+            var settings = Adore.Settings.get_default();
+            string homepage = settings.homepage.strip();
+
+            var page = window.create_page(false);
+            if (homepage != "") {
+                page.load_uri(homepage);
+            } else {
+                // Empty page — focus on the address bar, as it was before
+                page.load_html("", null);
+            }
+
             window.address_entry.grab_focus();
             window.address_entry.select_region(0, -1);
             window.present();

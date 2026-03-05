@@ -1,5 +1,5 @@
 namespace Adore {
-    [GtkTemplate(ui = "/io/github/adore_browser/adore/ui/notebook.ui")]
+    [GtkTemplate(ui = "/io/github/adorebrowser/adore/ui/notebook.ui")]
     public class Notebook : Gtk.Notebook {
         [GtkChild] public unowned Gtk.Button new_page_button;
         public bool can_go_back { get; private set; }
@@ -107,6 +107,12 @@ namespace Adore {
         public void reload() {
             if (page >= 0) {
                 ((Adore.WebPage) get_nth_page(page)).reload();
+            }
+        }
+
+        public void stop_loading() {
+            if (page >= 0) {
+                ((Adore.WebPage) get_nth_page(page)).stop_loading();
             }
         }
     }

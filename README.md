@@ -70,7 +70,6 @@ originally written circa 2014 in Vala + WebKit/GTK. The codebase has been modern
 - CMake → Meson
 - `webkit2gtk-4.0` → `webkit2gtk-4.1`
 - `libsoup-2.4` (`Soup.URI`, `queue_message`) → `libsoup-3.0` (`GLib.Uri`, `send_and_read_async`)
-- `Cairo.Surface` favicon → `Gdk.Texture` favicon
 - All symbols renamed from `Pumpkin` to `Adore`
 
 ## License

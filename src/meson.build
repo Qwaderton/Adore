@@ -8,6 +8,8 @@ adore_sources = files(
   'adore-web-page.vala',
   'adore-google-completion.vala',
   'adore-util.vala',
+  'adore-settings.vala',
+  'adore-settings-dialog.vala',
 )
 
 executable('adore',

@@ -1,9 +1,9 @@
 [Desktop Entry]
-Name=Adore
+Name=Adore Browser
 GenericName=Web Browser
 Comment=The missing browser for lightweight X11 desktop environments
 Exec=adore %U
-Icon=adore
+Icon=browser
 Terminal=false
 Type=Application
 Categories=Network;WebBrowser;
