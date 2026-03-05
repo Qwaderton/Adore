@@ -7,22 +7,28 @@ namespace Adore {
         private Gtk.Entry        proxy_user_entry;
         private Gtk.Entry        proxy_pass_entry;
         private Gtk.Grid         proxy_detail_grid;
-        private Gtk.Entry  search_engine_entry;
-        private Gtk.Switch suggestions_switch;
+        private Gtk.Entry        search_engine_entry;
+        private Gtk.Switch       suggestions_switch;
 
-        // Web
+        // Browser
         private Gtk.Switch js_switch;
         private Gtk.Entry  homepage_entry;
 
+        // Privacy (Cookies & Cache)
+        private WebKit.WebContext _web_context;
+
         public SettingsDialog(Gtk.Window parent) {
             Object(
-                title:           "Settings",
-                transient_for:   parent,
-                modal:           true,
-                use_header_bar:  1
+                title:          "Settings",
+                transient_for:  parent,
+                modal:          true,
+                use_header_bar: 1
             );
 
-            set_default_size(480, -1);
+            var app = (Adore.Application) ((Gtk.ApplicationWindow) parent).application;
+            _web_context = app.web_context;
+
+            set_default_size(500, -1);
             resizable = false;
 
             build_ui();
@@ -41,12 +47,53 @@ namespace Adore {
 
             var notebook = new Gtk.Notebook();
             notebook.margin = 12;
-            notebook.append_page(build_proxy_page(), new Gtk.Label("Proxy"));
-            notebook.append_page(build_web_page(),   new Gtk.Label("Browser"));
+            notebook.append_page(build_browser_page(), new Gtk.Label("Browser"));
+            notebook.append_page(build_proxy_page(),   new Gtk.Label("Proxy"));
+            notebook.append_page(build_privacy_page(), new Gtk.Label("Privacy"));
             content.pack_start(notebook, true, true, 0);
             content.show_all();
         }
 
+        // ── Browser ──────────────────────────────────────────────────────────
+        private Gtk.Widget build_browser_page() {
+            var grid = new Gtk.Grid();
+            grid.column_spacing = 12;
+            grid.row_spacing    = 12;
+            grid.margin         = 16;
+
+            int row = 0;
+
+            grid.attach(make_label("JavaScript:"), 0, row, 1, 1);
+            js_switch = new Gtk.Switch();
+            js_switch.halign = Gtk.Align.START;
+            grid.attach(js_switch, 1, row++, 1, 1);
+
+            grid.attach(make_label("Homepage:"), 0, row, 1, 1);
+            homepage_entry = new Gtk.Entry();
+            homepage_entry.hexpand = true;
+            homepage_entry.placeholder_text = "https://example.com";
+            grid.attach(homepage_entry, 1, row++, 1, 1);
+
+            grid.attach(make_label("Search engine URL:"), 0, row, 1, 1);
+            search_engine_entry = new Gtk.Entry();
+            search_engine_entry.hexpand = true;
+            search_engine_entry.placeholder_text = "https://www.google.com/search?q=%s";
+            grid.attach(search_engine_entry, 1, row++, 1, 1);
+
+            var search_hint = new Gtk.Label("<small>Use <tt>%s</tt> as query placeholder</small>");
+            search_hint.use_markup = true;
+            search_hint.halign = Gtk.Align.START;
+            grid.attach(search_hint, 1, row++, 1, 1);
+
+            grid.attach(make_label("Search suggestions:"), 0, row, 1, 1);
+            suggestions_switch = new Gtk.Switch();
+            suggestions_switch.halign = Gtk.Align.START;
+            grid.attach(suggestions_switch, 1, row++, 1, 1);
+
+            return grid;
+        }
+
+        // ── Proxy ─────────────────────────────────────────────────────────────
         private Gtk.Widget build_proxy_page() {
             var box = new Gtk.Box(Gtk.Orientation.VERTICAL, 12);
             box.margin = 16;
@@ -103,41 +150,48 @@ namespace Adore {
             return box;
         }
 
-        private Gtk.Widget build_web_page() {
-            var grid = new Gtk.Grid();
-            grid.column_spacing = 12;
-            grid.row_spacing    = 12;
-            grid.margin         = 16;
+        // ── Privacy (Cookies & Cache) ─────────────────────────────────────────
+        private Gtk.Widget build_privacy_page() {
+            var box = new Gtk.Box(Gtk.Orientation.VERTICAL, 12);
+            box.margin = 16;
 
-            int row = 0;
+            var cookies_lbl = new Gtk.Label("<b>Cookies</b>");
+            cookies_lbl.use_markup = true;
+            cookies_lbl.halign = Gtk.Align.START;
+            box.pack_start(cookies_lbl, false, false, 0);
 
-            grid.attach(make_label("JavaScript:"), 0, row, 1, 1);
-            js_switch = new Gtk.Switch();
-            js_switch.halign = Gtk.Align.START;
-            grid.attach(js_switch, 1, row++, 1, 1);
+            var clear_cookies_btn = new Gtk.Button.with_label("Clear all cookies");
+            clear_cookies_btn.clicked.connect(() => {
+                _web_context.get_cookie_manager().delete_all_cookies();
+                show_info("All cookies cleared.");
+            });
+            box.pack_start(clear_cookies_btn, false, false, 0);
 
-            grid.attach(make_label("Homepage:"), 0, row, 1, 1);
-            homepage_entry = new Gtk.Entry();
-            homepage_entry.hexpand = true;
-            homepage_entry.placeholder_text = "https://example.com";
-            grid.attach(homepage_entry, 1, row++, 1, 1);
-            grid.attach(make_label("Search engine URL:"), 0, row, 1, 1);
-            search_engine_entry = new Gtk.Entry();
-            search_engine_entry.hexpand = true;
-            search_engine_entry.placeholder_text = "https://www.google.com/search?q=%s";
-            
-            var search_hint = new Gtk.Label("<small>Use <tt>%s</tt> as query placeholder</small>");
-            search_hint.use_markup = true;
-            search_hint.halign = Gtk.Align.START;
-            grid.attach(search_engine_entry, 1, row++, 1, 1);
-            grid.attach(search_hint,         1, row++, 1, 1);
+            var sep = new Gtk.Separator(Gtk.Orientation.HORIZONTAL);
+            box.pack_start(sep, false, false, 0);
 
-            grid.attach(make_label("Search suggestions:"), 0, row, 1, 1);
-            suggestions_switch = new Gtk.Switch();
-            suggestions_switch.halign = Gtk.Align.START;
-            grid.attach(suggestions_switch, 1, row++, 1, 1);
+            var cache_lbl = new Gtk.Label("<b>Cache</b>");
+            cache_lbl.use_markup = true;
+            cache_lbl.halign = Gtk.Align.START;
+            box.pack_start(cache_lbl, false, false, 0);
 
-            return grid;
+            var clear_cache_btn = new Gtk.Button.with_label("Clear disk cache");
+            clear_cache_btn.clicked.connect(() => {
+                _web_context.clear_cache();
+                show_info("Disk cache cleared.");
+            });
+            box.pack_start(clear_cache_btn, false, false, 0);
+
+            var clear_all_btn = new Gtk.Button.with_label("Clear cookies & cache");
+            clear_all_btn.get_style_context().add_class("destructive-action");
+            clear_all_btn.clicked.connect(() => {
+                _web_context.get_cookie_manager().delete_all_cookies();
+                _web_context.clear_cache();
+                show_info("Cookies and cache cleared.");
+            });
+            box.pack_start(clear_all_btn, false, false, 0);
+
+            return box;
         }
 
         private Gtk.Label make_label(string text) {
@@ -147,9 +201,7 @@ namespace Adore {
         }
 
         private void update_proxy_detail_visibility() {
-            int t = proxy_type_combo.get_active();
-            // NONE (0) and SYSTEM (1) — no details needed
-            proxy_detail_grid.sensitive = (t >= 2);
+            proxy_detail_grid.sensitive = (proxy_type_combo.get_active() >= 2);
         }
 
         private void load_values() {
@@ -161,8 +213,8 @@ namespace Adore {
             proxy_user_entry.text  = s.proxy_username;
             proxy_pass_entry.text  = s.proxy_password;
 
-            js_switch.active       = s.enable_javascript;
-            homepage_entry.text    = s.homepage;
+            js_switch.active          = s.enable_javascript;
+            homepage_entry.text       = s.homepage;
             search_engine_entry.text  = s.search_engine_url;
             suggestions_switch.active = s.enable_suggestions;
 
@@ -176,6 +228,18 @@ namespace Adore {
             destroy();
         }
 
+        private void show_info(string message) {
+            var dlg = new Gtk.MessageDialog(
+                this,
+                Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
+                Gtk.MessageType.INFO,
+                Gtk.ButtonsType.OK,
+                "%s", message
+            );
+            dlg.run();
+            dlg.destroy();
+        }
+
         private void save_values() {
             var s = Adore.Settings.get_default();
 
@@ -185,16 +249,14 @@ namespace Adore {
             s.proxy_username = proxy_user_entry.text;
             s.proxy_password = proxy_pass_entry.text;
 
-            s.enable_javascript = js_switch.active;
-            s.homepage          = homepage_entry.text;
-            s.search_engine_url  = search_engine_entry.text.strip() != "" 
-                ? search_engine_entry.text.strip() 
+            s.enable_javascript  = js_switch.active;
+            s.homepage           = homepage_entry.text;
+            s.search_engine_url  = search_engine_entry.text.strip() != ""
+                ? search_engine_entry.text.strip()
                 : "https://www.google.com/search?q=%s";
             s.enable_suggestions = suggestions_switch.active;
 
             s.save();
-
-            // Signal — the application will apply the changes
             settings_changed();
         }
 

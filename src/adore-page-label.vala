@@ -1,5 +1,5 @@
 namespace Adore {
-    [GtkTemplate(ui = "/io/github/adorebrowser/adore/ui/page-label.ui")]
+    [GtkTemplate(ui = "/io/github/adore-browser/adore/ui/page-label.ui")]
     public class PageLabel : Gtk.Box {
         [GtkChild] public unowned Gtk.Image image;
         [GtkChild] protected unowned Gtk.Label caption;

@@ -1,5 +1,5 @@
 namespace Adore {
-    [GtkTemplate(ui = "/io/github/adorebrowser/adore/ui/window.ui")]
+    [GtkTemplate(ui = "/io/github/adore-browser/adore/ui/window.ui")]
     public class ApplicationWindow : Gtk.ApplicationWindow {
         [GtkChild] protected unowned Adore.Notebook notebook;
         [GtkChild] protected unowned Gtk.ToolButton back_button;
@@ -66,6 +66,19 @@ namespace Adore {
             });
 
             notebook.create_window.connect((page, x, y) => {
+                // Check if the drop landed inside any existing application window
+                foreach (var win in application.get_windows()) {
+                    if (win == this) continue;
+                    var app_win = win as Adore.ApplicationWindow;
+                    if (app_win == null) continue;
+                    int wx, wy, ww, wh;
+                    app_win.get_position(out wx, out wy);
+                    app_win.get_size(out ww, out wh);
+                    if (x >= wx && x <= wx + ww && y >= wy && y <= wy + wh) {
+                        return app_win.notebook;
+                    }
+                }
+                // Otherwise open a new window
                 var new_window = new Adore.ApplicationWindow(application);
                 new_window.show();
                 return new_window.notebook;
@@ -153,7 +166,6 @@ namespace Adore {
             return (Adore.WebPage) notebook.get_nth_page(notebook.page);
         }
 
-        
         public Adore.WebPage create_page(bool neighbor = true) {
             var web_page = new Adore.WebPage((Adore.Application) application);
             setup_page_signals(web_page);
@@ -193,9 +205,7 @@ namespace Adore {
                 if (hit_test_result.context_is_link()) {
                     context_menu.remove_all();
                     var open_link = new WebKit.ContextMenuItem.from_stock_action_with_label(
-                        WebKit.ContextMenuAction.OPEN_LINK,
-                        "Open Link"
-                    );
+                        WebKit.ContextMenuAction.OPEN_LINK, "Open Link");
                     var link_uri = hit_test_result.get_link_uri();
                     var tab_action = new Gtk.Action("open-in-tab", "Open in New Tab", null, null);
                     tab_action.activate.connect(() => {
@@ -204,13 +214,9 @@ namespace Adore {
                     var open_in_tab = new WebKit.ContextMenuItem(tab_action);
 
                     var copy_link = new WebKit.ContextMenuItem.from_stock_action_with_label(
-                        WebKit.ContextMenuAction.COPY_LINK_TO_CLIPBOARD,
-                        "Copy Link"
-                    );
+                        WebKit.ContextMenuAction.COPY_LINK_TO_CLIPBOARD, "Copy Link");
                     var download_link = new WebKit.ContextMenuItem.from_stock_action_with_label(
-                        WebKit.ContextMenuAction.DOWNLOAD_LINK_TO_DISK,
-                        "Download linked File"
-                    );
+                        WebKit.ContextMenuAction.DOWNLOAD_LINK_TO_DISK, "Download linked File");
                     context_menu.append(open_link);
                     context_menu.append(open_in_tab);
                     context_menu.append(copy_link);

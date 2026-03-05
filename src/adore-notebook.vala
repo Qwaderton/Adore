@@ -1,5 +1,5 @@
 namespace Adore {
-    [GtkTemplate(ui = "/io/github/adorebrowser/adore/ui/notebook.ui")]
+    [GtkTemplate(ui = "/io/github/adore-browser/adore/ui/notebook.ui")]
     public class Notebook : Gtk.Notebook {
         [GtkChild] public unowned Gtk.Button new_page_button;
         public bool can_go_back { get; private set; }
