@@ -2,9 +2,10 @@ namespace Adore {
     [GtkTemplate(ui = "/io/github/adore-browser/adore/ui/window.ui")]
     public class ApplicationWindow : Gtk.ApplicationWindow {
         [GtkChild] protected unowned Adore.Notebook notebook;
-        [GtkChild] protected unowned Gtk.ToolButton back_button;
-        [GtkChild] protected unowned Gtk.ToolButton forward_button;
-        [GtkChild] protected unowned Gtk.ToolButton reload_button;
+        [GtkChild] protected unowned Gtk.Button back_button;
+        [GtkChild] protected unowned Gtk.Button forward_button;
+        [GtkChild] protected unowned Gtk.Button reload_button;
+        [GtkChild] protected unowned Gtk.Image reload_image;
         [GtkChild] public unowned Gtk.Entry address_entry;
         [GtkChild] protected unowned Gtk.MenuButton menu_button;
 
@@ -96,23 +97,24 @@ namespace Adore {
         // Switching the icon of the reload/stop button
         private void update_loading_state(bool loading) {
             _page_is_loading = loading;
-            reload_button.icon_name = loading ? "process-stop" : "view-refresh";
+            reload_image.icon_name = loading ? "process-stop" : "view-refresh";
         }
 
         // Собираем выпадающее меню
         private void setup_menu() {
-            var menu = new Gtk.Menu();
+            var menu_model = new GLib.Menu();
+            menu_model.append("Settings", "win.open-settings");
+            menu_model.append("About",    "win.open-about");
 
-            var settings_item = new Gtk.MenuItem.with_label("Settings");
-            settings_item.activate.connect(open_settings);
-            menu.append(settings_item);
+            var settings_action = new GLib.SimpleAction("open-settings", null);
+            settings_action.activate.connect((p) => open_settings());
+            add_action(settings_action);
 
-            var about_item = new Gtk.MenuItem.with_label("About");
-            about_item.activate.connect(open_about);
-            menu.append(about_item);
+            var about_action = new GLib.SimpleAction("open-about", null);
+            about_action.activate.connect((p) => open_about());
+            add_action(about_action);
 
-            menu.show_all();
-            menu_button.popup = menu;
+            menu_button.set_menu_model(menu_model);
         }
 
         private void open_settings() {
@@ -135,7 +137,7 @@ namespace Adore {
             var dlg = new Gtk.AboutDialog();
             dlg.transient_for = this;
             dlg.modal = true;
-            dlg.logo = Gtk.IconTheme.get_default().load_icon("browser", 64, 0);
+            dlg.logo = Gtk.IconTheme.get_default().load_icon("io.github.adore-browser.adore", 64, 0);
             dlg.program_name = "Adore";
             dlg.comments = "The missing browser for lightweight\nX11 desktop environments.";
             dlg.copyright = "Copyright © 2026 Qwaderton";

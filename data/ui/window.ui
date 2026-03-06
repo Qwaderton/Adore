@@ -5,108 +5,99 @@
     <property name="can_focus">False</property>
     <property name="default_width">1024</property>
     <property name="default_height">768</property>
-    <child>
-      <object class="GtkBox" id="box">
+    <child type="titlebar">
+      <object class="GtkHeaderBar" id="headerbar">
         <property name="visible">True</property>
-        <property name="can_focus">False</property>
-        <property name="orientation">vertical</property>
+        <property name="show_close_button">True</property>
+        <property name="spacing">2</property>
         <child>
-          <object class="GtkToolbar" id="toolbar">
+          <object class="GtkButton" id="back_button">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
+            <property name="relief">none</property>
             <child>
-              <object class="GtkToolButton" id="back_button">
+              <object class="GtkImage">
                 <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="use_underline">True</property>
                 <property name="icon_name">go-previous</property>
+                <property name="icon_size">1</property>
               </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="homogeneous">False</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkToolButton" id="forward_button">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="use_underline">True</property>
-                <property name="icon_name">go-next</property>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="homogeneous">False</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkToolButton" id="reload_button">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="use_underline">True</property>
-                <property name="icon_name">view-refresh</property>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="homogeneous">False</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkToolItem" id="entry_tool_item">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <child>
-                  <object class="GtkEntry" id="address_entry">
-                    <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                  </object>
-                </child>
-              </object>
-              <packing>
-                <property name="expand">True</property>
-                <property name="homogeneous">True</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkToolItem" id="menu_tool_item">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <child>
-                  <object class="GtkMenuButton" id="menu_button">
-                    <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="relief">none</property>
-                    <child>
-                      <object class="GtkImage">
-                        <property name="visible">True</property>
-                        <property name="icon_name">open-menu-symbolic</property>
-                        <property name="icon_size">1</property>
-                      </object>
-                    </child>
-                  </object>
-                </child>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="homogeneous">False</property>
-              </packing>
             </child>
           </object>
           <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
+            <property name="pack_type">start</property>
             <property name="position">0</property>
           </packing>
         </child>
         <child>
-          <object class="AdoreNotebook" id="notebook">
+          <object class="GtkButton" id="forward_button">
             <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="relief">none</property>
+            <child>
+              <object class="GtkImage">
+                <property name="visible">True</property>
+                <property name="icon_name">go-next</property>
+                <property name="icon_size">1</property>
+              </object>
+            </child>
           </object>
           <packing>
-            <property name="expand">True</property>
-            <property name="fill">True</property>
+            <property name="pack_type">start</property>
             <property name="position">1</property>
           </packing>
         </child>
+        <child>
+          <object class="GtkButton" id="reload_button">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="relief">none</property>
+            <child>
+              <object class="GtkImage" id="reload_image">
+                <property name="visible">True</property>
+                <property name="icon_name">view-refresh</property>
+                <property name="icon_size">1</property>
+              </object>
+            </child>
+          </object>
+          <packing>
+            <property name="pack_type">start</property>
+            <property name="position">2</property>
+          </packing>
+        </child>
+        <child type="title">
+          <object class="GtkEntry" id="address_entry">
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="hexpand">True</property>
+            <property name="margin_start">20</property>
+            <property name="margin_end">20</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkMenuButton" id="menu_button">
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="focus_on_click">True</property>
+            <property name="use_popover">False</property> 
+            <property name="relief">none</property>
+            <child>
+              <object class="GtkImage">
+                <property name="visible">True</property>
+                <property name="icon_name">open-menu-symbolic</property>
+                <property name="icon_size">1</property>
+              </object>
+            </child>
+          </object>
+          <packing>
+            <property name="pack_type">end</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+    <child>
+      <object class="AdoreNotebook" id="notebook">
+        <property name="visible">True</property>
       </object>
     </child>
   </template>
