@@ -137,12 +137,12 @@ namespace Adore {
             var dlg = new Gtk.AboutDialog();
             dlg.transient_for = this;
             dlg.modal = true;
-            dlg.logo = Gtk.IconTheme.get_default().load_icon("io.github.adore-browser.adore", 64, 0);
-            dlg.program_name = "Adore";
+            dlg.logo = Gtk.IconTheme.get_default().load_icon("io.github.adore-browser.adore", 128, 0);
+            dlg.program_name = "Adore Web Browser";
             dlg.comments = "The missing browser for lightweight\nX11 desktop environments.";
             dlg.copyright = "Copyright © 2026 Qwaderton";
             dlg.version = "1.1";
-            dlg.website = "https://adore.qwaderton.org";
+            dlg.website = "https://adore-browser.github.io/";
             dlg.license_type = Gtk.License.GPL_3_0;
             dlg.wrap_license = true;
             dlg.run();
