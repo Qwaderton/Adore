@@ -141,12 +141,14 @@ namespace Adore {
             var store = BookmarkStore.get_default();
             if (store.contains(uri)) {
                 // Find and remove
-                var entries = store.entries;
-                for (int i = 0; i < entries.size; i++) {
-                    if (entries.get(i).url == uri) {
+                unowned var entries = store.entries;
+                int i = 0;
+                foreach (var e in entries) {
+                    if (e.url == uri) {
                         store.remove_at(i);
                         break;
                     }
+                    i++;
                 }
             } else {
                 store.add(title, uri);

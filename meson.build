@@ -15,8 +15,7 @@ adore_deps = [
   dependency('libsoup-3.0'),
   dependency('json-glib-1.0'),
   dependency('glib-2.0'),
-  dependency('gio-2.0'),
-  dependency('gee-0.8'),
+  dependency('gio-2.0')
 ]
 
 subdir('data')

@@ -12,7 +12,7 @@ namespace Adore {
             public string url;
         }
 
-        private Gee.ArrayList<Entry?> _entries;
+        private List<Entry?> _entries;
 
         public static BookmarkStore get_default() {
             if (_instance == null) _instance = new BookmarkStore();
@@ -24,11 +24,11 @@ namespace Adore {
                 Environment.get_user_data_dir(), "adore");
             DirUtils.create_with_parents(dir, 0700);
             _path = Path.build_filename(dir, "bookmarks.tsv");
-            _entries = new Gee.ArrayList<Entry?>();
+            _entries = new List<Entry?>();
             load();
         }
 
-        public Gee.ArrayList<Entry?> entries { get { return _entries; } }
+        public unowned List<Entry?> entries { get { return _entries; } }
 
         public void add(string title, string url) {
             // Avoid exact duplicates
@@ -36,14 +36,14 @@ namespace Adore {
                 if (e.url == url) return;
             }
             Entry ent = { title, url };
-            _entries.add(ent);
+            _entries.append(ent);
             save();
             changed();
         }
 
         public void remove_at(int index) {
-            if (index >= 0 && index < _entries.size) {
-                _entries.remove_at(index);
+            if (index >= 0 && index < (int)_entries.length()) {
+                _entries.remove(_entries.nth_data(index));
                 save();
                 changed();
             }
@@ -66,7 +66,7 @@ namespace Adore {
                     var parts = line.split("\t", 2);
                     if (parts.length == 2) {
                         Entry e = { parts[0], parts[1] };
-                        _entries.add(e);
+                        _entries.append(e);
                     }
                 }
             } catch { /* file doesn't exist yet */ }
@@ -137,10 +137,11 @@ namespace Adore {
                 _list.remove(child);
                 child.destroy();
             }
-            var entries = _store.entries;
-            for (int i = 0; i < entries.size; i++) {
-                var e = entries.get(i);
+            unowned var entries = _store.entries;
+            int i = 0;
+            foreach (var e in entries) {
                 add_row(e.title, e.url, i);
+                i++;
             }
         }
 
