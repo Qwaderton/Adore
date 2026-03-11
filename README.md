@@ -16,17 +16,6 @@ For many years, Midori was the default browser in lightweight configurations. It
 - Context menu for links (open, open in new tab, copy, download)
 - Multiple windows
 
-## Dependencies
-
-| Library | Version |
-|---------|---------|
-| GTK+    | ≥ 3.22  |
-| WebKitGTK | 4.1 (API 4.1, based on WebKit2) |
-| libsoup | 3.0     |
-| json-glib | 1.0   |
-| GLib    | ≥ 2.56  |
-| Gee     | ≥ 0.8   |
-
 ## Building
 
 Adore uses [Meson](https://mesonbuild.com/).

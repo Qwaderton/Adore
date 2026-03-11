@@ -390,20 +390,42 @@ namespace Adore {
         }
 
         // ── About ─────────────────────────────────────────────────────────────
+        private Gdk.Pixbuf? load_logo_icon() {
+            var theme = Gtk.IconTheme.get_default();
+            
+            string[] icons = {
+                "io.github.adore-browser.adore",  // Primary
+                "web-browser",                    // Fallback 1  
+                "applications-internet",          // Fallback 2
+                null
+            };
+            
+            foreach (string? icon_name in icons) {
+                if (icon_name == null) break;
+                
+                var gicon = theme.lookup_icon(icon_name, 128, 0);
+                if (gicon != null) {
+                    return gicon.load_icon();
+                }
+            }
+            
+            return null;
+        }
+        
         private void open_about() {
             var dlg = new Gtk.AboutDialog();
             dlg.transient_for = this;
             dlg.modal = true;
-            dlg.logo = Gtk.IconTheme.get_default().load_icon(
-                "io.github.adore-browser.adore", 128, 0);
+            
+            var logo = load_logo_icon();
+            if (logo != null) {
+                dlg.logo = logo;
+            }
+            
             dlg.program_name = "Adore Web Browser";
-            dlg.comments =
-                "The missing browser for lightweight\nX11 desktop environments.";
-            dlg.copyright  = "Copyright © 2026 Qwaderton";
-            dlg.version     = "1.1-dev";
-            dlg.website     = "https://adore-browser.github.io/";
-            dlg.license_type = Gtk.License.GPL_3_0;
-            dlg.wrap_license = true;
+            dlg.comments = "The missing browser.";
+            dlg.copyright = "Copyright © 2026 Qwaderton";
+            dlg.website = "https://adore-browser.github.io/";
             dlg.run();
             dlg.destroy();
         }
