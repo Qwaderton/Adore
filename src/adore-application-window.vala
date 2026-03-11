@@ -424,6 +424,7 @@ namespace Adore {
             
             dlg.program_name = "Adore Web Browser";
             dlg.comments = "The missing browser.";
+            dlg.version     = "1.1";
             dlg.copyright = "Copyright © 2026 Qwaderton";
             dlg.website = "https://adore-browser.github.io/";
             dlg.run();
