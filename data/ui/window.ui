@@ -10,15 +10,18 @@
         <property name="visible">True</property>
         <property name="show_close_button">True</property>
         <property name="spacing">2</property>
+
+        <!-- Back -->
         <child>
           <object class="GtkButton" id="back_button">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="relief">none</property>
+            <property name="tooltip_text">Back (Alt+Left)</property>
             <child>
               <object class="GtkImage">
                 <property name="visible">True</property>
-                <property name="icon_name">go-previous</property>
+                <property name="icon_name">go-previous-symbolic</property>
                 <property name="icon_size">1</property>
               </object>
             </child>
@@ -28,15 +31,18 @@
             <property name="position">0</property>
           </packing>
         </child>
+
+        <!-- Forward -->
         <child>
           <object class="GtkButton" id="forward_button">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="relief">none</property>
+            <property name="tooltip_text">Forward (Alt+Right)</property>
             <child>
               <object class="GtkImage">
                 <property name="visible">True</property>
-                <property name="icon_name">go-next</property>
+                <property name="icon_name">go-next-symbolic</property>
                 <property name="icon_size">1</property>
               </object>
             </child>
@@ -46,15 +52,18 @@
             <property name="position">1</property>
           </packing>
         </child>
+
+        <!-- Reload / Stop -->
         <child>
           <object class="GtkButton" id="reload_button">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="relief">none</property>
+            <property name="tooltip_text">Reload (F5) / Stop (Esc)</property>
             <child>
               <object class="GtkImage" id="reload_image">
                 <property name="visible">True</property>
-                <property name="icon_name">view-refresh</property>
+                <property name="icon_name">view-refresh-symbolic</property>
                 <property name="icon_size">1</property>
               </object>
             </child>
@@ -64,6 +73,8 @@
             <property name="position">2</property>
           </packing>
         </child>
+
+        <!-- Address bar -->
         <child type="title">
           <object class="GtkEntry" id="address_entry">
             <property name="visible">True</property>
@@ -71,14 +82,38 @@
             <property name="hexpand">True</property>
             <property name="margin_start">32</property>
             <property name="margin_end">32</property>
+            <property name="placeholder_text">Search or enter address (Ctrl+L)</property>
           </object>
         </child>
+
+        <!-- Bookmark star button -->
+        <child>
+          <object class="GtkButton" id="bookmark_button">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="relief">none</property>
+            <property name="tooltip_text">Bookmark this page (Ctrl+B)</property>
+            <child>
+              <object class="GtkImage" id="bookmark_image">
+                <property name="visible">True</property>
+                <property name="icon_name">bookmark-new-symbolic</property>
+                <property name="icon_size">1</property>
+              </object>
+            </child>
+          </object>
+          <packing>
+            <property name="pack_type">end</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+
+        <!-- Hamburger menu -->
         <child>
           <object class="GtkMenuButton" id="menu_button">
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="focus_on_click">True</property>
-            <property name="use_popover">False</property> 
+            <property name="use_popover">False</property>
             <property name="relief">none</property>
             <child>
               <object class="GtkImage">
@@ -93,6 +128,7 @@
             <property name="position">0</property>
           </packing>
         </child>
+
       </object>
     </child>
     <child>

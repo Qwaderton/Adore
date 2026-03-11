@@ -25,6 +25,7 @@ For many years, Midori was the default browser in lightweight configurations. It
 | libsoup | 3.0     |
 | json-glib | 1.0   |
 | GLib    | ≥ 2.56  |
+| Gee     | ≥ 0.8   |
 
 ## Building
 

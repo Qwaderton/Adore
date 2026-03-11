@@ -10,6 +10,8 @@ adore_sources = files(
   'adore-util.vala',
   'adore-settings.vala',
   'adore-settings-dialog.vala',
+  'adore-downloads-dialog.vala',
+  'adore-bookmarks.vala',
 )
 
 executable('adore',
