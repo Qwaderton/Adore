@@ -3,6 +3,7 @@ namespace Adore {
         protected ApplicationWindow window;
         public WebKit.WebContext web_context;
         public WebKit.Settings web_settings;
+        public WebKit.UserContentManager user_content_manager;
         private string _data_path;
         private string _database_path;
 
@@ -42,6 +43,11 @@ namespace Adore {
             var settings = Adore.Settings.get_default();
             settings.apply_proxy(web_context);
             settings.apply_web_settings(web_settings);
+
+            // ── Content filtering ──────────────────────────────────────────────
+            user_content_manager = new WebKit.UserContentManager();
+            Adore.ContentFilterManager.get_default().attach(user_content_manager);
+            Adore.ContentFilterManager.get_default().update_if_needed.begin(null);
 
             startup.connect(() => {
                 window = new ApplicationWindow(this);

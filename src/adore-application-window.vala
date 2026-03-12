@@ -16,8 +16,9 @@ namespace Adore {
         private bool _page_is_loading = false;
 
         // ── Persistent dialogs (one per window) ──────────────────────────────
-        private Adore.DownloadsDialog? _downloads_dialog = null;
-        private Adore.BookmarksDialog? _bookmarks_dialog  = null;
+        private Adore.DownloadsDialog?  _downloads_dialog  = null;
+        private Adore.BookmarksDialog?  _bookmarks_dialog   = null;
+        private Adore.FilteringDialog?  _filtering_dialog   = null;
 
         public ApplicationWindow(Gtk.Application application) {
             Object(application: application);
@@ -303,8 +304,9 @@ namespace Adore {
 
             // ── Settings / About section ──
             var app_section = new GLib.Menu();
-            app_section.append("Settings", "win.open-settings");
-            app_section.append("About",    "win.open-about");
+            app_section.append("Filtering", "win.open-filtering");
+            app_section.append("Settings",  "win.open-settings");
+            app_section.append("About",     "win.open-about");
             menu_model.append_section(null, app_section);
 
             // ── Register actions ──
@@ -316,6 +318,7 @@ namespace Adore {
             add_named_action("new-window",      open_new_window);
             add_named_action("show-bookmarks",  show_bookmarks_dialog);
             add_named_action("show-downloads",  show_downloads_dialog);
+            add_named_action("open-filtering",  show_filtering_dialog);
             add_named_action("open-settings",   open_settings);
             add_named_action("open-about",      open_about);
 
@@ -371,6 +374,14 @@ namespace Adore {
         private void show_bookmarks_dialog() {
             ensure_bookmarks_dialog();
             _bookmarks_dialog.present();
+        }
+
+        // ── Filtering dialog ──────────────────────────────────────────────────
+        private void show_filtering_dialog() {
+            if (_filtering_dialog == null) {
+                _filtering_dialog = new Adore.FilteringDialog(this);
+            }
+            _filtering_dialog.present();
         }
 
         // ── Settings ──────────────────────────────────────────────────────────
