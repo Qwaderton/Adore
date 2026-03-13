@@ -25,7 +25,7 @@
   <object class="GtkImage" id="new_page_image">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
-    <property name="icon_name">tab-new</property>
+    <property name="icon_name">tab-new-symbolic</property>
     <property name="icon_size">2</property>
   </object>
 </interface>

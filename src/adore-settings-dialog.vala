@@ -1,4 +1,7 @@
 namespace Adore {
+    // settings_changed carries two flags so the caller only reloads pages
+    // when web-affecting settings (JS, proxy) actually changed — not on every
+    // save (e.g. changing homepage must not reload all tabs).
     public class SettingsDialog : Gtk.Dialog {
         // Proxy
         private Gtk.ComboBoxText proxy_type_combo;
@@ -16,6 +19,10 @@ namespace Adore {
 
         // Privacy (Cookies & Cache)
         private WebKit.WebContext _web_context;
+
+        // proxy_changed: proxy settings were modified
+        // web_changed:   JS or other per-page WebKit settings were modified
+        public signal void settings_changed(bool proxy_changed, bool web_changed);
 
         public SettingsDialog(Gtk.Window parent) {
             Object(
@@ -98,45 +105,43 @@ namespace Adore {
             var box = new Gtk.Box(Gtk.Orientation.VERTICAL, 12);
             box.margin = 16;
 
-            // --- Proxy type ---
             var type_box = new Gtk.Box(Gtk.Orientation.HORIZONTAL, 8);
             type_box.pack_start(new Gtk.Label("Proxy type:"), false, false, 0);
 
             proxy_type_combo = new Gtk.ComboBoxText();
-            proxy_type_combo.append_text("No proxy");          // 0 = NONE
-            proxy_type_combo.append_text("System proxy");    // 1 = SYSTEM
-            proxy_type_combo.append_text("HTTP");                 // 2 = HTTP
-            proxy_type_combo.append_text("HTTPS");                // 3 = HTTPS
-            proxy_type_combo.append_text("SOCKS4");               // 4 = SOCKS4
-            proxy_type_combo.append_text("SOCKS5");               // 5 = SOCKS5
+            proxy_type_combo.append_text("No proxy");       // 0 = NONE
+            proxy_type_combo.append_text("System proxy");   // 1 = SYSTEM
+            proxy_type_combo.append_text("HTTP");            // 2 = HTTP
+            proxy_type_combo.append_text("HTTPS");           // 3 = HTTPS
+            proxy_type_combo.append_text("SOCKS4");          // 4 = SOCKS4
+            proxy_type_combo.append_text("SOCKS5");          // 5 = SOCKS5
             proxy_type_combo.hexpand = true;
             type_box.pack_start(proxy_type_combo, true, true, 0);
             box.pack_start(type_box, false, false, 0);
 
-            // --- Connection details  ---
             proxy_detail_grid = new Gtk.Grid();
             proxy_detail_grid.column_spacing = 10;
             proxy_detail_grid.row_spacing    = 8;
             proxy_detail_grid.margin_top     = 8;
 
             int row = 0;
-            proxy_detail_grid.attach(make_label("Host:"),     0, row, 1, 1);
+            proxy_detail_grid.attach(make_label("Host:"), 0, row, 1, 1);
             proxy_host_entry = new Gtk.Entry();
             proxy_host_entry.hexpand = true;
             proxy_host_entry.placeholder_text = "127.0.0.1";
             proxy_detail_grid.attach(proxy_host_entry, 1, row++, 1, 1);
 
-            proxy_detail_grid.attach(make_label("Port:"),     0, row, 1, 1);
+            proxy_detail_grid.attach(make_label("Port:"), 0, row, 1, 1);
             proxy_port_spin = new Gtk.SpinButton.with_range(1, 65535, 1);
             proxy_port_spin.value = 8080;
             proxy_detail_grid.attach(proxy_port_spin, 1, row++, 1, 1);
 
-            proxy_detail_grid.attach(make_label("Login:"),    0, row, 1, 1);
+            proxy_detail_grid.attach(make_label("Login:"), 0, row, 1, 1);
             proxy_user_entry = new Gtk.Entry();
             proxy_user_entry.placeholder_text = "(optional)";
             proxy_detail_grid.attach(proxy_user_entry, 1, row++, 1, 1);
 
-            proxy_detail_grid.attach(make_label("Password:"),   0, row, 1, 1);
+            proxy_detail_grid.attach(make_label("Password:"), 0, row, 1, 1);
             proxy_pass_entry = new Gtk.Entry();
             proxy_pass_entry.visibility = false;
             proxy_pass_entry.placeholder_text = "(optional)";
@@ -144,7 +149,6 @@ namespace Adore {
 
             box.pack_start(proxy_detail_grid, false, false, 0);
 
-            // Show/hide details depending on the type
             proxy_type_combo.changed.connect(update_proxy_detail_visibility);
 
             return box;
@@ -157,13 +161,14 @@ namespace Adore {
 
             box.pack_start(make_section_label("Clear browsing data"), false, false, 0);
 
-            var cookies_check  = new Gtk.CheckButton.with_label("Cookies");
-            var cache_check    = new Gtk.CheckButton.with_label("Disk cache");
-            var storage_check  = new Gtk.CheckButton.with_label("Site data (localStorage, IndexedDB, WebSQL)");
+            var cookies_check = new Gtk.CheckButton.with_label("Cookies");
+            var cache_check   = new Gtk.CheckButton.with_label("Disk cache");
+            var storage_check = new Gtk.CheckButton.with_label(
+                "Site data (localStorage, IndexedDB, WebSQL)");
 
-            cookies_check.active  = true;
-            cache_check.active    = true;
-            storage_check.active  = false;
+            cookies_check.active = true;
+            cache_check.active   = true;
+            storage_check.active = false;
 
             box.pack_start(cookies_check,  false, false, 0);
             box.pack_start(cache_check,    false, false, 0);
@@ -174,7 +179,6 @@ namespace Adore {
             var clear_btn = new Gtk.Button.with_label("Clear selected…");
             clear_btn.get_style_context().add_class("destructive-action");
             clear_btn.clicked.connect(() => {
-                // "Are you sure?"
                 var confirm = new Gtk.MessageDialog(
                     this,
                     Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
@@ -196,9 +200,9 @@ namespace Adore {
                     if (storage_check.active) {
                         var dm = _web_context.get_website_data_manager();
                         var types =
-                            WebKit.WebsiteDataTypes.LOCAL_STORAGE       |
-                            WebKit.WebsiteDataTypes.INDEXEDDB_DATABASES  |
-                            WebKit.WebsiteDataTypes.WEBSQL_DATABASES     |
+                            WebKit.WebsiteDataTypes.LOCAL_STORAGE      |
+                            WebKit.WebsiteDataTypes.INDEXEDDB_DATABASES |
+                            WebKit.WebsiteDataTypes.WEBSQL_DATABASES    |
                             WebKit.WebsiteDataTypes.SESSION_STORAGE;
                         dm.clear(types, 0, null, (obj, res) => {
                             try { dm.clear.end(res); } catch {}
@@ -214,46 +218,11 @@ namespace Adore {
             return box;
         }
 
-	private Gtk.Label make_section_label(string text) {
+        private Gtk.Label make_section_label(string text) {
             var lbl = new Gtk.Label("<b>" + GLib.Markup.escape_text(text) + "</b>");
             lbl.use_markup = true;
             lbl.halign = Gtk.Align.START;
             return lbl;
-        }
-
-        private void on_clear_site_data() {
-            var dm = _web_context.get_website_data_manager();
-            var types =
-                WebKit.WebsiteDataTypes.LOCAL_STORAGE        |
-                WebKit.WebsiteDataTypes.INDEXEDDB_DATABASES  |
-                WebKit.WebsiteDataTypes.WEBSQL_DATABASES      |
-                WebKit.WebsiteDataTypes.SESSION_STORAGE;
-            dm.clear(types, 0, null, (obj, res) => {
-                try {
-                    dm.clear.end(res);
-                    show_info("Site data cleared.");
-                } catch (Error e) {
-                    show_info("Error: " + e.message);
-                }
-            });
-        }
-
-        private void on_clear_all() {
-            _web_context.get_cookie_manager().delete_all_cookies();
-            _web_context.clear_cache();
-            var dm = _web_context.get_website_data_manager();
-            var types =
-                WebKit.WebsiteDataTypes.LOCAL_STORAGE             |
-                WebKit.WebsiteDataTypes.INDEXEDDB_DATABASES        |
-                WebKit.WebsiteDataTypes.WEBSQL_DATABASES           |
-                WebKit.WebsiteDataTypes.SESSION_STORAGE            |
-                WebKit.WebsiteDataTypes.OFFLINE_APPLICATION_CACHE  |
-                WebKit.WebsiteDataTypes.DISK_CACHE                 |
-                WebKit.WebsiteDataTypes.MEMORY_CACHE;
-            dm.clear(types, 0, null, (obj, res) => {
-                try { dm.clear.end(res); } catch {}
-                show_info("All browsing data cleared.");
-            });
         }
 
         private Gtk.Label make_label(string text) {
@@ -305,6 +274,14 @@ namespace Adore {
         private void save_values() {
             var s = Adore.Settings.get_default();
 
+            // Snapshot old values to detect what actually changed
+            var old_proxy_type = s.proxy_type;
+            var old_proxy_host = s.proxy_host;
+            var old_proxy_port = s.proxy_port;
+            var old_proxy_user = s.proxy_username;
+            var old_proxy_pass = s.proxy_password;
+            var old_js         = s.enable_javascript;
+
             s.proxy_type     = (Adore.Settings.ProxyType) proxy_type_combo.get_active();
             s.proxy_host     = proxy_host_entry.text;
             s.proxy_port     = (int) proxy_port_spin.value;
@@ -319,9 +296,17 @@ namespace Adore {
             s.enable_suggestions = suggestions_switch.active;
 
             s.save();
-            settings_changed();
-        }
 
-        public signal void settings_changed();
+            bool proxy_changed =
+                s.proxy_type != old_proxy_type ||
+                s.proxy_host != old_proxy_host ||
+                s.proxy_port != old_proxy_port ||
+                s.proxy_username != old_proxy_user ||
+                s.proxy_password != old_proxy_pass;
+
+            bool web_changed = (s.enable_javascript != old_js);
+
+            settings_changed(proxy_changed, web_changed);
+        }
     }
 }

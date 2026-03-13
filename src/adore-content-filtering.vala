@@ -7,17 +7,14 @@ namespace Adore {
 
         private static ContentFilterManager? _instance = null;
 
-        // WebKit objects
         private WebKit.UserContentManager?     _ucm   = null;
         private WebKit.UserContentFilterStore? _store = null;
 
-        // Persisted state
         private KeyFile  _kf;
         private string   _kf_path;     // ~/.config/adore/filters.ini
         private string   _store_dir;   // ~/.local/share/adore/filter-store
         private string[] _urls;
 
-        // libsoup session
         private Soup.Session _session;
 
         public static ContentFilterManager get_default() {
@@ -92,19 +89,21 @@ namespace Adore {
             }
         }
 
-        // ── Metadata (per-URL, stored in the same KeyFile) ────────────────────
-
+        // ── Metadata (per-URL) ────────────────────────────────────────────────
+        // Use a stable key derived from the full URL string instead of a 32-bit
+        // hash, which has a meaningful collision probability when many lists are
+        // configured.  We base64-encode the URL to keep it KeyFile-safe.
         private string meta_key(string url) {
-            return "meta_%u".printf(url.hash());
+            return "meta_" + GLib.Base64.encode(url.data).replace("=", "").replace("/", "_").replace("+", "-");
         }
 
-        private string  meta_last_modified(string url) {
+        private string meta_last_modified(string url) {
             try { return _kf.get_string(meta_key(url), "last_modified"); } catch { return ""; }
         }
-        private int     meta_expires_days(string url) {
+        private int meta_expires_days(string url) {
             try { return _kf.get_integer(meta_key(url), "expires_days"); } catch { return 0; }
         }
-        private int64   meta_fetched_at(string url) {
+        private int64 meta_fetched_at(string url) {
             try { return _kf.get_int64(meta_key(url), "fetched_at"); } catch { return 0; }
         }
 
@@ -126,6 +125,27 @@ namespace Adore {
             return age_days >= expires;
         }
 
+        // ── Cache paths ───────────────────────────────────────────────────────
+        // Use the same collision-free key as meta_key for file names.
+        private string cache_path(string url) {
+            var safe = GLib.Base64.encode(url.data)
+                .replace("=", "").replace("/", "_").replace("+", "-");
+            return Path.build_filename(_store_dir, "raw_%s.txt".printf(safe));
+        }
+
+        private string? load_cached_rules(string url) {
+            try {
+                string data;
+                FileUtils.get_contents(cache_path(url), out data);
+                return data;
+            } catch { return null; }
+        }
+
+        private void save_cached_rules(string url, string body) {
+            try { FileUtils.set_contents(cache_path(url), body); }
+            catch (Error e) { warning("filters: cache write: %s", e.message); }
+        }
+
         // ── Fetch + compile ───────────────────────────────────────────────────
 
         private async void do_update(bool force, UpdateCallback? callback) {
@@ -138,31 +158,31 @@ namespace Adore {
             var all_rules = new StringBuilder();
 
             foreach (var url in _urls) {
+                string? body = null;
+
                 if (!force && !is_expired(url)) {
                     var cached = load_cached_rules(url);
                     if (cached != null) {
-                        all_rules.append(cached);
+                        append_rules(all_rules, cached);
                         skipped++;
                         continue;
                     }
                     // Cache file missing → fall through to fetch
                 }
 
-                string? body = yield fetch_url(url);
+                body = yield fetch_url(url);
                 if (body == null) {
-                    // On failure, silently use whatever we have cached
                     var cached = load_cached_rules(url);
-                    if (cached != null) all_rules.append(cached);
+                    if (cached != null) append_rules(all_rules, cached);
                     failed++;
                     continue;
                 }
 
-                var last_mod    = parse_header(body, "Last modified") ?? meta_last_modified(url);
-                var expires_d   = parse_expires(body);
+                var last_mod  = parse_header(body, "Last modified") ?? meta_last_modified(url);
+                var expires_d = parse_expires(body);
                 save_meta(url, last_mod, expires_d, GLib.get_real_time() / 1000000);
                 save_cached_rules(url, body);
-
-                all_rules.append(body);
+                append_rules(all_rules, body);
                 fetched++;
             }
 
@@ -182,9 +202,21 @@ namespace Adore {
             if (callback != null) callback(ok || _urls.length == 0, status);
         }
 
+        // Append rules text ensuring there is always a newline separator between
+        // concatenated files, so the last line of one file never merges with the
+        // first line of the next.
+        private static void append_rules(StringBuilder sb, string body) {
+            if (sb.len > 0 && sb.str[sb.len - 1] != '\n')
+                sb.append_c('\n');
+            sb.append(body);
+        }
+
         private async string? fetch_url(string url) {
             try {
-                var msg  = new Soup.Message("GET", url);
+                var msg = new Soup.Message("GET", url);
+                // Identify ourselves so CDNs don't block the request
+                msg.request_headers.replace("User-Agent",
+                    "Adore/" + Adore.APP_ID + " (content-filter-update)");
                 var data = yield _session.send_and_read_async(
                     msg, GLib.Priority.DEFAULT, null);
                 if (msg.status_code != 200) return null;
@@ -195,25 +227,6 @@ namespace Adore {
             }
         }
 
-        // ── Rule caching ──────────────────────────────────────────────────────
-
-        private string cache_path(string url) {
-            return Path.build_filename(_store_dir, "raw_%u.txt".printf(url.hash()));
-        }
-
-        private string? load_cached_rules(string url) {
-            try {
-                string data;
-                FileUtils.get_contents(cache_path(url), out data);
-                return data;
-            } catch { return null; }
-        }
-
-        private void save_cached_rules(string url, string body) {
-            try { FileUtils.set_contents(cache_path(url), body); }
-            catch (Error e) { warning("filters: cache write: %s", e.message); }
-        }
-
         // ── WebKit compile + install ──────────────────────────────────────────
 
         private async bool compile_and_install(string rules_text) {
@@ -221,7 +234,7 @@ namespace Adore {
             if (json == "") return false;
 
             var bytes = new GLib.Bytes(json.data);
-            bool ok = false;
+            bool ok   = false;
             try {
                 var filter = yield _store.save("adore-main", bytes, null);
                 _ucm.remove_all_filters();
@@ -241,7 +254,7 @@ namespace Adore {
                     var f = _store.load.end(res);
                     _ucm.remove_all_filters();
                     _ucm.add_filter(f);
-                } catch { /* no stored filter yet — that's fine */ }
+                } catch { /* no stored filter yet */ }
             });
         }
 
@@ -258,11 +271,13 @@ namespace Adore {
 
                 string? entry = null;
 
-                if ("##" in line) {
+                if ("##" in line && !line.has_prefix("@@") && !line.has_prefix("||")) {
                     // Cosmetic rule: [domain(s)]##selector
                     var parts    = line.split("##", 2);
                     var selector = parts[1].strip();
                     if (selector.length == 0) continue;
+                    // Skip cosmetic exception rules (#@#)
+                    if (selector.has_prefix("@")) continue;
                     var sel_esc  = selector.replace("\\", "\\\\").replace("\"", "\\\"");
                     entry = "  {\"trigger\":{\"url-filter\":\".*\"},\"action\":{\"type\":\"css-display-none\",\"selector\":\"%s\"}}".printf(sel_esc);
 
@@ -280,10 +295,10 @@ namespace Adore {
                     var escaped = Regex.escape_string(domain).replace("/", "\\/");
                     entry = "  {\"trigger\":{\"url-filter\":\"^[a-z]+:\\/\\/([^/]*\\.)?%s\"},\"action\":{\"type\":\"block\"}}".printf(escaped);
 
-                } else if (!line.has_prefix("@@")) {
-                    // Plain substring/pattern rule
+                } else if (!line.has_prefix("@@") && !("##" in line)) {
+                    // Plain substring/pattern rule (no cosmetic, no whitelist)
                     var pattern = line.split("$")[0].strip();
-                    if (pattern.length < 4) continue;   // too generic
+                    if (pattern.length < 4) continue;  // too generic
                     var escaped = Regex.escape_string(pattern).replace("/", "\\/");
                     entry = "  {\"trigger\":{\"url-filter\":\"%s\"},\"action\":{\"type\":\"block\"}}".printf(escaped);
                 }
@@ -296,10 +311,9 @@ namespace Adore {
             }
 
             sb.append("\n]");
-            return first ? "" : sb.str;   // empty string if no rules were added
+            return first ? "" : sb.str;
         }
 
-        /** Strip options and anchor characters from a domain pattern. */
         private static string extract_domain(string raw) {
             return raw.replace("^", "").split("$")[0].split("/")[0].strip();
         }
@@ -318,7 +332,7 @@ namespace Adore {
         private static int parse_expires(string body) {
             var raw = parse_header(body, "Expires");
             if (raw == null) return 0;
-            return int.parse(raw.split(" ")[0]);   // "4 days (update frequency)" → 4
+            return int.parse(raw.split(" ")[0]);
         }
     }
 

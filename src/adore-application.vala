@@ -1,19 +1,16 @@
 namespace Adore {
     public class Application : Gtk.Application {
-        protected ApplicationWindow window;
+        // Nullable: the window is created in the startup signal handler.
+        // Guard all accesses until then.
+        protected ApplicationWindow? window;
         public WebKit.WebContext web_context;
         public WebKit.Settings web_settings;
         public WebKit.UserContentManager user_content_manager;
         private string _data_path;
         private string _database_path;
 
-        public string data_path {
-            get { return _data_path; }
-        }
-
-        public string database_path {
-            get { return _database_path; }
-        }
+        public string data_path    { get { return _data_path;    } }
+        public string database_path { get { return _database_path; } }
 
         public Application() {
             Object(application_id: APP_ID, flags: ApplicationFlags.HANDLES_OPEN);
@@ -27,6 +24,7 @@ namespace Adore {
             _database_path = Path.build_filename(_data_path, "browser.db");
 
             web_context = new WebKit.WebContext();
+            // null = keep favicons in memory only (no on-disk favicon database)
             web_context.set_favicon_database_directory(null);
             web_context.set_cache_model(WebKit.CacheModel.DOCUMENT_BROWSER);
 
@@ -36,16 +34,19 @@ namespace Adore {
             );
 
             web_settings = new WebKit.Settings();
-            web_settings.enable_smooth_scrolling = true;
-            web_settings.enable_developer_extras = true;
+            web_settings.enable_smooth_scrolling  = true;
+            web_settings.enable_developer_extras  = true;
 
-            // Applying the saved settings
+            // UserContentManager is shared across all WebViews so content
+            // filters apply everywhere, including related (window.open) views.
+            user_content_manager = new WebKit.UserContentManager();
+
+            // Apply saved settings
             var settings = Adore.Settings.get_default();
             settings.apply_proxy(web_context);
             settings.apply_web_settings(web_settings);
 
             // ── Content filtering ──────────────────────────────────────────────
-            user_content_manager = new WebKit.UserContentManager();
             Adore.ContentFilterManager.get_default().attach(user_content_manager);
             Adore.ContentFilterManager.get_default().update_if_needed.begin(null);
 
@@ -54,6 +55,8 @@ namespace Adore {
             });
 
             open.connect((files, hint) => {
+                // startup runs before open, but guard anyway
+                if (window == null) return;
                 foreach (var file in files) {
                     window.create_page(false).load_uri(file.get_uri());
                 }
@@ -62,17 +65,8 @@ namespace Adore {
         }
 
         protected override void activate() {
-            var settings = Adore.Settings.get_default();
-            string homepage = settings.homepage.strip();
-
-            var page = window.create_page(false);
-            if (homepage != "") {
-                page.load_uri(homepage);
-            } else {
-                // Empty page — focus on the address bar, as it was before
-                page.load_html("", null);
-            }
-
+            // window is guaranteed to exist here (startup fires before activate)
+            window.open_start_page();
             window.address_entry.grab_focus();
             window.address_entry.select_region(0, -1);
             window.present();

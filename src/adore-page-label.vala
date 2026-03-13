@@ -25,6 +25,7 @@ namespace Adore {
                         value.scale_simple(ICON_SIZE, ICON_SIZE, Gdk.InterpType.BILINEAR)
                     );
                 }
+                notify_property("icon");
             }
         }
 

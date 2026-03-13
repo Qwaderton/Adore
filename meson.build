@@ -1,9 +1,9 @@
 project('adore', 'vala', 'c',
-  version: '0.1.0',
+  version: '1.2',
   license: 'GPL-3.0-or-later',
   meson_version: '>= 0.59.0',
   default_options: [
-    'warning_level=2',
+    'warning_level=0',
   ]
 )
 

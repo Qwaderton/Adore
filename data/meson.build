@@ -20,3 +20,13 @@ install_data(
 gnome.post_install(
   gtk_update_icon_cache: true,
 )
+
+desktop_file_validate = find_program('desktop-file-validate', required: false)
+if desktop_file_validate.found()
+  test(
+    'validate-desktop',
+    desktop_file_validate,
+    args: [join_paths(meson.current_source_dir(),
+                      'io.github.adore_browser.adore.desktop')],
+  )
+endif

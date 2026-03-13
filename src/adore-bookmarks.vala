@@ -1,7 +1,9 @@
 namespace Adore {
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Bookmark store — reads/writes a plain text file (title\turl per line)
+    // Bookmark store — reads/writes a plain text file (title\turl per line).
+    // Tabs and newlines inside titles are stripped on save to keep the format
+    // unambiguous.
     // ──────────────────────────────────────────────────────────────────────────
     public class BookmarkStore : Object {
         private static BookmarkStore? _instance = null;
@@ -23,7 +25,7 @@ namespace Adore {
             var dir = Path.build_filename(
                 Environment.get_user_data_dir(), "adore");
             DirUtils.create_with_parents(dir, 0700);
-            _path = Path.build_filename(dir, "bookmarks.tsv");
+            _path   = Path.build_filename(dir, "bookmarks.tsv");
             _entries = new List<Entry?>();
             load();
         }
@@ -31,21 +33,34 @@ namespace Adore {
         public unowned List<Entry?> entries { get { return _entries; } }
 
         public void add(string title, string url) {
-            // Avoid exact duplicates
-            foreach (var e in _entries) {
-                if (e.url == url) return;
-            }
-            Entry ent = { title, url };
+            foreach (var e in _entries)
+                if (e.url == url) return;   // no exact duplicates
+            Entry ent = { sanitize_title(title), url };
             _entries.append(ent);
             save();
             changed();
         }
 
         public void remove_at(int index) {
-            if (index >= 0 && index < (int)_entries.length()) {
+            if (index >= 0 && index < (int) _entries.length()) {
                 _entries.remove(_entries.nth_data(index));
                 save();
                 changed();
+            }
+        }
+
+        // Remove by URL — safe to call while iterating the UI list because
+        // the index stored in each row widget becomes stale after any deletion.
+        public void remove_by_url(string url) {
+            int i = 0;
+            foreach (var e in _entries) {
+                if (e.url == url) {
+                    _entries.remove(_entries.nth_data(i));
+                    save();
+                    changed();
+                    return;
+                }
+                i++;
             }
         }
 
@@ -56,6 +71,11 @@ namespace Adore {
         }
 
         public signal void changed();
+
+        // TSV format forbids tabs and newlines in the title field.
+        private static string sanitize_title(string title) {
+            return title.replace("\t", " ").replace("\n", " ").replace("\r", "");
+        }
 
         private void load() {
             try {
@@ -69,7 +89,7 @@ namespace Adore {
                         _entries.append(e);
                     }
                 }
-            } catch { /* file doesn't exist yet */ }
+            } catch { /* file doesn't exist yet — that's fine */ }
         }
 
         private void save() {
@@ -92,7 +112,7 @@ namespace Adore {
     // Bookmarks manager window
     // ──────────────────────────────────────────────────────────────────────────
     public class BookmarksDialog : Gtk.Dialog {
-        private Gtk.ListBox _list;
+        private Gtk.ListBox   _list;
         private BookmarkStore _store;
 
         public signal void open_url(string url);
@@ -132,26 +152,21 @@ namespace Adore {
         }
 
         private void populate() {
-            // Clear
             foreach (var child in _list.get_children()) {
                 _list.remove(child);
                 child.destroy();
             }
-            unowned var entries = _store.entries;
-            int i = 0;
-            foreach (var e in entries) {
-                add_row(e.title, e.url, i);
-                i++;
+            foreach (var e in _store.entries) {
+                add_row(e.title, e.url);
             }
         }
 
-        private void add_row(string title, string url, int index) {
+        private void add_row(string title, string url) {
             var row = new Gtk.ListBoxRow();
 
             var hbox = new Gtk.Box(Gtk.Orientation.HORIZONTAL, 6);
             hbox.margin = 6;
 
-            // Favicon placeholder
             var icon = new Gtk.Image.from_icon_name(
                 "user-bookmarks-symbolic", Gtk.IconSize.SMALL_TOOLBAR);
             hbox.pack_start(icon, false, false, 0);
@@ -173,15 +188,14 @@ namespace Adore {
             vbox.pack_start(url_lbl,   false, false, 0);
             hbox.pack_start(vbox, true, true, 0);
 
-            // Delete button
+            // Delete by URL — avoids stale index bugs when the list is repopulated
+            // after each deletion.
+            string captured_url = url;
             var del_btn = new Gtk.Button.from_icon_name(
                 "edit-delete-symbolic", Gtk.IconSize.BUTTON);
             del_btn.relief       = Gtk.ReliefStyle.NONE;
             del_btn.tooltip_text = "Remove bookmark";
-            int captured_index = index;
-            del_btn.clicked.connect(() => {
-                _store.remove_at(captured_index);
-            });
+            del_btn.clicked.connect(() => _store.remove_by_url(captured_url));
             hbox.pack_start(del_btn, false, false, 0);
 
             row.add(hbox);
@@ -192,9 +206,8 @@ namespace Adore {
 
         private void on_row_activated(Gtk.ListBoxRow row) {
             var url = row.get_data<string>("url");
-            if (url != null) {
+            if (url != null)
                 open_url(url);
-            }
         }
     }
 }

@@ -11,15 +11,23 @@ namespace Adore {
             this.with_label(application, new Adore.PageLabel());
         }
 
+        // Related views (window.open / middle-click) must share the same
+        // UserContentManager so content filters apply to them too.
         public WebPage.as_related(WebKit.WebView parent, Adore.Application application) {
-            Object(related_view: parent);
+            Object(
+                related_view:          parent,
+                user_content_manager:  application.user_content_manager
+            );
             set_settings(application.web_settings);
             _label = new Adore.PageLabel();
             init_signals();
         }
 
         public WebPage.with_label(Adore.Application application, Adore.PageLabel label) {
-            Object(web_context: application.web_context);
+            Object(
+                web_context:           application.web_context,
+                user_content_manager:  application.user_content_manager
+            );
             set_settings(application.web_settings);
             _label = label;
             init_signals();
@@ -35,20 +43,20 @@ namespace Adore {
             notify["favicon"].connect(() => {
                 var surface = get_favicon();
                 if (surface != null) {
-                    double width, height;
                     var ctx = new Cairo.Context(surface);
-                    ctx.clip_extents(null, null, out width, out height);
-                    var pixbuf = Gdk.pixbuf_get_from_surface(
-                        surface, 0, 0, (int) width, (int) height
-                    );
-                    if (pixbuf != null) {
-                        _label.icon = pixbuf.scale_simple(
-                            ICON_SIZE, ICON_SIZE, Gdk.InterpType.BILINEAR
-                        );
+                    double x1, y1, x2, y2;
+                    ctx.clip_extents(out x1, out y1, out x2, out y2);
+                    int w = (int)(x2 - x1);
+                    int h = (int)(y2 - y1);
+                    if (w > 0 && h > 0) {
+                        var pixbuf = Gdk.pixbuf_get_from_surface(surface, 0, 0, w, h);
+                        if (pixbuf != null) {
+                            _label.icon = pixbuf;
+                            return;
+                        }
                     }
-                } else {
-                    _label.icon = null;
                 }
+                _label.icon = null;
             });
         }
     }

@@ -17,8 +17,8 @@ namespace Adore {
 
         // ── Persistent dialogs (one per window) ──────────────────────────────
         private Adore.DownloadsDialog?  _downloads_dialog  = null;
-        private Adore.BookmarksDialog?  _bookmarks_dialog   = null;
-        private Adore.FilteringDialog?  _filtering_dialog   = null;
+        private Adore.BookmarksDialog?  _bookmarks_dialog  = null;
+        private Adore.FilteringDialog?  _filtering_dialog  = null;
 
         public ApplicationWindow(Gtk.Application application) {
             Object(application: application);
@@ -74,17 +74,10 @@ namespace Adore {
                 address_entry.select_region(0, -1);
             });
 
+            // Tab drag-to-window: on Wayland get_position/get_size are unreliable,
+            // so we always create a new window for detached tabs.  On X11 the heuristic
+            // below works as before; on Wayland the worst case is a redundant window.
             notebook.create_window.connect((page, x, y) => {
-                foreach (var win in application.get_windows()) {
-                    if (win == this) continue;
-                    var app_win = win as Adore.ApplicationWindow;
-                    if (app_win == null) continue;
-                    int wx, wy, ww, wh;
-                    app_win.get_position(out wx, out wy);
-                    app_win.get_size(out ww, out wh);
-                    if (x >= wx && x <= wx + ww && y >= wy && y <= wy + wh)
-                        return app_win.notebook;
-                }
                 var new_window = new Adore.ApplicationWindow(application);
                 new_window.show();
                 return new_window.notebook;
@@ -141,16 +134,7 @@ namespace Adore {
             if (uri == "" || uri == "about:blank") return;
             var store = BookmarkStore.get_default();
             if (store.contains(uri)) {
-                // Find and remove
-                unowned var entries = store.entries;
-                int i = 0;
-                foreach (var e in entries) {
-                    if (e.url == uri) {
-                        store.remove_at(i);
-                        break;
-                    }
-                    i++;
-                }
+                store.remove_by_url(uri);
             } else {
                 store.add(title, uri);
             }
@@ -192,12 +176,11 @@ namespace Adore {
 
                     // ── New window ────────────────────────────────────────────
                     case Gdk.Key.n:
-                        if (shift) {
-                            // Ctrl+Shift+N — private window placeholder
-                            // (WebKit private browsing is a separate context)
-                        } else {
-                            open_new_window();
-                        }
+                        // Ctrl+Shift+N: private browsing requires a separate
+                        // WebContext with is_ephemeral=true — not yet implemented.
+                        // Fall through to open a regular window to avoid silently
+                        // swallowing the shortcut.
+                        open_new_window();
                         return true;
 
                     // ── Navigation ────────────────────────────────────────────
@@ -209,7 +192,7 @@ namespace Adore {
 
                     case Gdk.Key.r:
                         if (shift)
-                            notebook.reload();   // hard reload (same action here)
+                            reload_bypass_cache();   // Ctrl+Shift+R — hard reload
                         else
                             notebook.reload();
                         return true;
@@ -227,14 +210,14 @@ namespace Adore {
                         show_downloads_dialog();
                         return true;
 
-                    // ── Find (F3 / Ctrl+F) — forward to WebView ────────────────
+                    // ── Find (Ctrl+F) — delegate to WebView ───────────────────
                     case Gdk.Key.f:
                         if (notebook.page >= 0) {
                             var wv = (WebKit.WebView) notebook.get_nth_page(notebook.page);
                             var fc = wv.get_find_controller();
                             fc.search("", WebKit.FindOptions.WRAP_AROUND, 100);
                         }
-                        return false;  // let entry handle it
+                        return false;  // let the WebView entry handle it
 
                     // ── Zoom ──────────────────────────────────────────────────
                     case Gdk.Key.plus:
@@ -247,7 +230,7 @@ namespace Adore {
                         return true;
 
                     case Gdk.Key.@0:
-                        zoom_current(0.0); // reset
+                        zoom_current(0.0); // reset to 100 %
                         return true;
 
                     default:
@@ -255,10 +238,13 @@ namespace Adore {
                 }
             }
 
-            // F5 — reload, Alt+Left/Right — back/forward
+            // F5 / Shift+F5, Escape, F6, Alt+Left/Right
             switch (event.keyval) {
                 case Gdk.Key.F5:
-                    notebook.reload();
+                    if (shift)
+                        reload_bypass_cache();
+                    else
+                        notebook.reload();
                     return true;
                 case Gdk.Key.Escape:
                     if (_page_is_loading) notebook.stop_loading();
@@ -274,6 +260,13 @@ namespace Adore {
             }
 
             return false;
+        }
+
+        // ── Hard reload (bypass cache) ────────────────────────────────────────
+        private void reload_bypass_cache() {
+            if (notebook.page < 0) return;
+            var wv = (WebKit.WebView) notebook.get_nth_page(notebook.page);
+            wv.reload_bypass_cache();
         }
 
         // ── Zoom helper ───────────────────────────────────────────────────────
@@ -292,14 +285,14 @@ namespace Adore {
 
             // ── Window section ──
             var window_section = new GLib.Menu();
-            window_section.append("New Tab",      "win.new-tab");
-            window_section.append("New Window",   "win.new-window");
+            window_section.append("New Tab",    "win.new-tab");
+            window_section.append("New Window", "win.new-window");
             menu_model.append_section(null, window_section);
 
             // ── Bookmarks / Downloads section ──
             var tools_section = new GLib.Menu();
-            tools_section.append("Bookmarks",  "win.show-bookmarks");
-            tools_section.append("Downloads",  "win.show-downloads");
+            tools_section.append("Bookmarks", "win.show-bookmarks");
+            tools_section.append("Downloads", "win.show-downloads");
             menu_model.append_section(null, tools_section);
 
             // ── Settings / About section ──
@@ -315,12 +308,12 @@ namespace Adore {
                 address_entry.grab_focus();
                 address_entry.select_region(0, -1);
             });
-            add_named_action("new-window",      open_new_window);
-            add_named_action("show-bookmarks",  show_bookmarks_dialog);
-            add_named_action("show-downloads",  show_downloads_dialog);
-            add_named_action("open-filtering",  show_filtering_dialog);
-            add_named_action("open-settings",   open_settings);
-            add_named_action("open-about",      open_about);
+            add_named_action("new-window",     open_new_window);
+            add_named_action("show-bookmarks", show_bookmarks_dialog);
+            add_named_action("show-downloads", show_downloads_dialog);
+            add_named_action("open-filtering", show_filtering_dialog);
+            add_named_action("open-settings",  open_settings);
+            add_named_action("open-about",     open_about);
 
             menu_button.set_menu_model(menu_model);
         }
@@ -334,10 +327,22 @@ namespace Adore {
         // ── New window ────────────────────────────────────────────────────────
         private void open_new_window() {
             var new_win = new Adore.ApplicationWindow(application);
-            var app = (Adore.Application) application;
-            new_win.create_page(false).load_html("", null);
+            new_win.open_start_page();
             new_win.address_entry.grab_focus();
             new_win.show();
+        }
+
+        // Opens the configured homepage (or a blank page if none is set).
+        // Used both by Application.activate() and by open_new_window().
+        public void open_start_page() {
+            var settings = Adore.Settings.get_default();
+            string homepage = settings.homepage.strip();
+            var page = create_page(false);
+            if (homepage != "") {
+                page.load_uri(homepage);
+            } else {
+                page.load_html("", null);
+            }
         }
 
         // ── Downloads dialog ──────────────────────────────────────────────────
@@ -387,56 +392,36 @@ namespace Adore {
         // ── Settings ──────────────────────────────────────────────────────────
         private void open_settings() {
             var dlg = new Adore.SettingsDialog(this);
-            dlg.settings_changed.connect(() => {
+            dlg.settings_changed.connect((proxy_changed, web_changed) => {
                 var app = (Adore.Application) application;
-                var s = Adore.Settings.get_default();
-                s.apply_proxy(app.web_context);
-                s.apply_web_settings(app.web_settings);
-                for (int i = 0; i < notebook.get_n_pages(); i++) {
-                    var wp = (WebKit.WebView) notebook.get_nth_page(i);
-                    wp.reload();
+                var s   = Adore.Settings.get_default();
+                if (proxy_changed)
+                    s.apply_proxy(app.web_context);
+                if (web_changed) {
+                    s.apply_web_settings(app.web_settings);
+                    // Only reload tabs when web-affecting settings change (e.g. JS toggle).
+                    for (int i = 0; i < notebook.get_n_pages(); i++) {
+                        var wp = (WebKit.WebView) notebook.get_nth_page(i);
+                        wp.reload();
+                    }
                 }
             });
             dlg.show();
         }
 
         // ── About ─────────────────────────────────────────────────────────────
-        private Gdk.Pixbuf? load_logo_icon() {
-            var theme = Gtk.IconTheme.get_default();
-            
-            string[] icons = {
-                "io.github.adore-browser.adore",  // Primary
-                "web-browser",                    // Fallback 1  
-                "applications-internet",          // Fallback 2
-                null
-            };
-            
-            foreach (string? icon_name in icons) {
-                if (icon_name == null) break;
-                
-                var gicon = theme.lookup_icon(icon_name, 128, 0);
-                if (gicon != null) {
-                    return gicon.load_icon();
-                }
-            }
-            
-            return null;
-        }
-        
         private void open_about() {
             var dlg = new Gtk.AboutDialog();
-            dlg.transient_for = this;
-            dlg.modal = true;
-            
-            var logo = load_logo_icon();
-            if (logo != null) {
-                dlg.logo = logo;
-            }
-            
-            dlg.program_name = "Adore Web Browser";
-            dlg.comments = "The missing browser.";
-            dlg.copyright = "Copyright © 2026 Qwaderton";
-            dlg.website = "https://adore-browser.github.io/";
+            dlg.transient_for  = this;
+            dlg.modal          = true;
+            // Let GTK resolve the icon from the theme using the app ID — no manual
+            // pixbuf loading needed, and it works correctly with all icon sizes.
+            dlg.logo_icon_name = APP_ID;
+            dlg.program_name   = "Adore Web Browser";
+            dlg.version        = Adore.VERSION;
+            dlg.comments       = "The missing browser.";
+            dlg.copyright      = "Copyright © 2026 Qwaderton";
+            dlg.website        = "https://adore-browser.github.io/";
             dlg.run();
             dlg.destroy();
         }
@@ -493,16 +478,19 @@ namespace Adore {
                 (context_menu, event, hit_test_result) => {
                     if (hit_test_result.context_is_link()) {
                         context_menu.remove_all();
+
                         var open_link = new WebKit.ContextMenuItem
                             .from_stock_action_with_label(
                                 WebKit.ContextMenuAction.OPEN_LINK, "Open Link");
-                        var link_uri  = hit_test_result.get_link_uri();
-                        var tab_action = new Gtk.Action(
-                            "open-in-tab", "Open in New Tab", null, null);
-                        tab_action.activate.connect(() =>
-                            create_page().load_uri(link_uri));
-                        var open_in_tab  = new WebKit.ContextMenuItem(tab_action);
-                        var copy_link    = new WebKit.ContextMenuItem
+
+                        // Use GLib.SimpleAction instead of the deprecated Gtk.Action.
+                        var link_uri    = hit_test_result.get_link_uri();
+                        var tab_gaction = new GLib.SimpleAction("open-in-tab", null);
+                        tab_gaction.activate.connect(() => create_page().load_uri(link_uri));
+                        var open_in_tab = new WebKit.ContextMenuItem.from_gaction(
+                            tab_gaction, "Open in New Tab", null);
+
+                        var copy_link = new WebKit.ContextMenuItem
                             .from_stock_action_with_label(
                                 WebKit.ContextMenuAction.COPY_LINK_TO_CLIPBOARD,
                                 "Copy Link");
@@ -510,6 +498,7 @@ namespace Adore {
                             .from_stock_action_with_label(
                                 WebKit.ContextMenuAction.DOWNLOAD_LINK_TO_DISK,
                                 "Download linked File");
+
                         context_menu.append(open_link);
                         context_menu.append(open_in_tab);
                         context_menu.append(copy_link);

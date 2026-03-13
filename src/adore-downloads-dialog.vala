@@ -86,20 +86,29 @@ namespace Adore {
         }
 
         private void on_finished() {
-            is_finished      = true;
+            is_finished            = true;
             _progress_bar.fraction = 1.0;
-            _status_label.label =
-                "<small><span foreground=\"#2ec27e\">✓  Done</span></small>";
+            // Use a CSS class instead of a hardcoded colour so the label
+            // respects the active GTK theme (including dark mode).
+            _status_label.get_style_context().add_class("success");
+            _status_label.label = "<small>✓  Done</small>";
             _cancel_btn.hide();
             _open_btn.show();
         }
 
         private void on_failed(WebKit.Download dl, WebKit.DownloadError err) {
             is_finished = true;
-            _status_label.label =
-                "<small><span foreground=\"#e01b24\">✗  %s</span></small>"
-                .printf(GLib.Markup.escape_text(err.message));
             _cancel_btn.hide();
+            // Distinguish user cancellation from a real network/IO error.
+            if (err.matches(WebKit.DownloadError.quark(),
+                            WebKit.DownloadError.CANCELLED_BY_USER)) {
+                _status_label.label = "<small>Cancelled</small>";
+            } else {
+                _status_label.get_style_context().add_class("error");
+                _status_label.label =
+                    "<small>✗  %s</small>".printf(
+                        GLib.Markup.escape_text(err.message));
+            }
         }
 
         private void on_open() {
